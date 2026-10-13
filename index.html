@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142c2b">
+  <title>Signal Desk | Tweet Classifier</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #142c2b;
+      --muted: #5d716c;
+      --paper: #f5f3ec;
+      --panel: #fffefa;
+      --line: #d7ded5;
+      --green: #236a50;
+      --green-soft: #e3f0e7;
+      --red: #a43a2b;
+      --red-soft: #f8e7e1;
+      --amber: #d1a344;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+    }
+    .masthead {
+      min-height: 82px;
+      padding: 20px max(24px, calc((100vw - 1080px) / 2));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--ink);
+      color: #f7f5eb;
+      border-bottom: 4px solid var(--amber);
+    }
+    .brand { font-size: 20px; font-weight: 700; letter-spacing: 0; }
+    .brand span { color: #a8c9ae; }
+    .status { font: 12px/1.4 "Trebuchet MS", sans-serif; color: #d6e5d8; }
+    .status::before {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: #a5d4a9;
+      content: "";
+    }
+    main { width: min(100% - 40px, 900px); margin: 62px auto 80px; }
+    .intro { max-width: 650px; margin-bottom: 30px; animation: rise-in 420ms ease-out both; }
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--green);
+      font: 700 11px/1.4 "Trebuchet MS", sans-serif;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    h1 { max-width: 600px; margin: 0; font-size: clamp(34px, 6vw, 54px); line-height: 1.04; }
+    .intro p:last-child { max-width: 530px; margin: 16px 0 0; color: var(--muted); font: 16px/1.6 "Trebuchet MS", sans-serif; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(230px, .85fr);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 8px 8px 0 #e6e4da;
+      animation: rise-in 520ms 80ms ease-out both;
+    }
+    .form-panel { padding: 30px; }
+    .form-panel h2 { margin: 0 0 20px; font-size: 21px; }
+    label { display: block; margin-bottom: 9px; font: 700 13px/1.4 "Trebuchet MS", sans-serif; }
+    textarea {
+      display: block;
+      width: 100%;
+      min-height: 172px;
+      resize: vertical;
+      padding: 15px;
+      border: 1px solid #aebbb0;
+      border-radius: 2px;
+      background: #fff;
+      color: var(--ink);
+      font: 15px/1.55 "Trebuchet MS", sans-serif;
+    }
+    textarea:focus { outline: 3px solid #b8d1bd; outline-offset: 1px; }
+    .field-meta { margin: 8px 0 18px; color: var(--muted); font: 12px/1.4 "Trebuchet MS", sans-serif; text-align: right; }
+    button {
+      min-height: 48px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 2px;
+      background: var(--green);
+      color: white;
+      cursor: pointer;
+      font: 700 14px/1 "Trebuchet MS", sans-serif;
+    }
+    button:hover { background: #174d3a; }
+    button:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+    .result-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 300px;
+      padding: 30px;
+      border-left: 1px solid var(--line);
+      background: #f0f2e9;
+    }
+    .result-panel h2 { margin: 0 0 14px; font: 700 11px/1.4 "Trebuchet MS", sans-serif; letter-spacing: 1.4px; text-transform: uppercase; }
+    .placeholder { margin: 0; color: var(--muted); font-size: 19px; line-height: 1.5; }
+    .result { padding: 18px; border-left: 4px solid; }
+    .result.disaster { border-color: var(--red); background: var(--red-soft); color: #6f261d; }
+    .result.safe { border-color: var(--green); background: var(--green-soft); color: #194b38; }
+    .result strong { display: block; font-size: 22px; line-height: 1.2; }
+    .confidence { margin: 10px 0 0; font: 13px/1.5 "Trebuchet MS", sans-serif; }
+    .error { margin: 14px 0 0; color: var(--red); font: 13px/1.5 "Trebuchet MS", sans-serif; }
+    .note { margin: 20px 0 0; color: var(--muted); font: 12px/1.55 "Trebuchet MS", sans-serif; }
+    .analysis { margin-top: 58px; padding-top: 30px; border-top: 1px solid var(--line); }
+    .analysis-heading { margin-bottom: 20px; }
+    .analysis-heading h2 { margin: 0; font-size: 28px; }
+    .analysis-heading p { margin: 8px 0 0; color: var(--muted); font: 14px/1.5 "Trebuchet MS", sans-serif; }
+    .techniques { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 20px 0 32px; border-block: 1px solid var(--line); }
+    .technique { padding: 16px 20px 16px 0; }
+    .technique + .technique { padding-left: 20px; border-left: 1px solid var(--line); }
+    .technique h4 { margin: 0 0 7px; font-size: 16px; }
+    .technique p { margin: 0; color: var(--muted); font: 13px/1.55 "Trebuchet MS", sans-serif; }
+    .analysis-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 30px; border-block: 1px solid var(--line); }
+    .analysis-metric { padding: 16px 20px 16px 0; }
+    .analysis-metric + .analysis-metric { padding-left: 20px; border-left: 1px solid var(--line); }
+    .analysis-metric strong { display: block; font-size: 25px; }
+    .analysis-metric span { color: var(--muted); font: 12px/1.5 "Trebuchet MS", sans-serif; }
+    .analysis-subheading { margin: 30px 0 14px; font-size: 19px; }
+    .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .chart-grid figure { min-width: 0; margin: 0; }
+    .chart-grid figure.wide { grid-column: 1 / -1; }
+    .chart-grid img { display: block; width: 100%; height: auto; border: 1px solid var(--line); background: white; }
+    .chart-grid figcaption { margin-top: 8px; color: var(--muted); font: 12px/1.5 "Trebuchet MS", sans-serif; }
+    .data-table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+    .data-table { width: 100%; border-collapse: collapse; font: 13px/1.5 "Trebuchet MS", sans-serif; }
+    .data-table th, .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .data-table th { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .tweet-cell { min-width: 260px; max-width: 560px; overflow-wrap: anywhere; }
+    .analysis-empty { padding: 18px 0; color: var(--muted); font: 14px/1.5 "Trebuchet MS", sans-serif; }
+    @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 680px) {
+      .masthead { min-height: 72px; padding: 17px 20px; }
+      main { width: min(100% - 32px, 520px); margin: 40px auto 56px; }
+      .workspace { grid-template-columns: 1fr; }
+      .form-panel, .result-panel { padding: 23px; }
+      .result-panel { min-height: 180px; border-top: 1px solid var(--line); border-left: 0; }
+      textarea { min-height: 145px; }
+      .analysis-metrics { grid-template-columns: 1fr; }
+      .analysis-metric { padding: 12px 0; }
+      .analysis-metric + .analysis-metric { padding-left: 0; border-top: 1px solid var(--line); border-left: 0; }
+      .techniques { grid-template-columns: 1fr; }
+      .technique { padding: 12px 0; }
+      .technique + .technique { padding-left: 0; border-top: 1px solid var(--line); border-left: 0; }
+      .chart-grid { grid-template-columns: 1fr; }
+      .chart-grid figure.wide { grid-column: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand">Signal <span>Desk</span></div>
+    <div class="status">Classifier ready</div>
+  </header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow">Disaster tweet analysis</p>
+      <h1>Read the signal in a social post.</h1>
+      <p>Using NLP techniques for the greater good, this project supports the advancement of disaster management by identifying tweets that may describe emergencies.</p>
+    </section>
+    <section class="workspace" aria-label="Tweet classification">
+      <div class="form-panel">
+        <h2>Tweet to analyze</h2>
+        <form method="post" action="/">
+          <label for="tweet">Tweet text</label>
+          <textarea id="tweet" name="tweet" maxlength="5000" required placeholder="Paste the tweet here...">{{ tweet }}</textarea>
+          <p class="field-meta"><span id="char-count">0</span> / 5,000 characters</p>
+          <button type="submit">Classify tweet</button>
+          {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+        </form>
+        <p class="note">Predictions are model estimates, not confirmation of an active emergency.</p>
+      </div>
+      <aside class="result-panel" aria-live="polite">
+        <h2>Classification</h2>
+        <div id="classification-result" role="status" aria-live="polite" aria-atomic="true">
+          {% if result %}
+            {% set is_disaster = result.label == 1 %}
+            <div class="result {{ 'disaster' if is_disaster else 'safe' }}">
+              <strong>{{ result.prediction }}</strong>
+              <p class="confidence">Model confidence: {{ (result.confidence * 100)|round(1) }}%</p>
+            </div>
+          {% else %}
+            <p class="placeholder">Your result will appear here.</p>
+          {% endif %}
+        </div>
+      </aside>
+    </section>
+    <section class="analysis" aria-labelledby="analysis-title">
+      <div class="analysis-heading">
+        <p class="eyebrow">Dataset and model</p>
+        <h2 id="analysis-title">Analysis results</h2>
+        <p>Dataset overview, held-out evaluation, and visual summaries.</p>
+      </div>
+      <h3 class="analysis-subheading">NLP techniques used</h3>
+      <div class="techniques" aria-label="Natural language processing techniques">
+        <section class="technique">
+          <h4>Text cleaning and tokenization</h4>
+          <p>Removes URLs and non-letter characters, lowercases tweet text, then splits it into words.</p>
+        </section>
+        <section class="technique">
+          <h4>Word and character TF-IDF</h4>
+          <p>Combines word unigrams and bigrams with character n-grams to capture useful terms and word patterns.</p>
+        </section>
+        <section class="technique">
+          <h4>Logistic Regression</h4>
+          <p>Uses the TF-IDF features to estimate whether a tweet is disaster-related or non-disaster.</p>
+        </section>
+      </div>
+      {% if analysis %}
+        <div class="analysis-metrics" aria-label="Dataset and model summary">
+          <div class="analysis-metric"><strong>{{ analysis.rows }}</strong><span>labeled tweets</span></div>
+          <div class="analysis-metric"><strong>{{ (analysis.accuracy * 100)|round(1) }}%</strong><span>test accuracy</span></div>
+          <div class="analysis-metric"><strong>{{ analysis.training_rows }} / {{ analysis.testing_rows }}</strong><span>training / test rows</span></div>
+        </div>
+
+        <h3 class="analysis-subheading">Visualizations</h3>
+        <div class="chart-grid">
+          <figure>
+            <img src="{{ url_for('static', filename='class_distribution.png') }}" alt="Bar chart showing disaster and non-disaster tweet counts">
+            <figcaption>Number of labeled tweets in each class.</figcaption>
+          </figure>
+          <figure>
+            <img src="{{ url_for('static', filename='class_percentage.png') }}" alt="Pie chart showing the percentage of disaster and non-disaster tweets">
+            <figcaption>Share of the dataset in each class.</figcaption>
+          </figure>
+          <figure class="wide">
+            <img src="{{ url_for('static', filename='model_evaluation.png') }}" alt="Confusion matrix, ROC curve, and precision-recall curve for the classifier">
+            <figcaption>Held-out test evaluation: prediction counts, ROC, and precision-recall.</figcaption>
+          </figure>
+        </div>
+
+        <h3 class="analysis-subheading">Test classification report</h3>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1 score</th><th>Support</th></tr></thead>
+            <tbody>
+              {% for label in ['Non-Disaster', 'Disaster'] %}
+                <tr>
+                  <td>{{ label }}</td>
+                  <td>{{ analysis.report[label].precision|round(2) }}</td>
+                  <td>{{ analysis.report[label].recall|round(2) }}</td>
+                  <td>{{ analysis.report[label]['f1-score']|round(2) }}</td>
+                  <td>{{ analysis.report[label].support|int }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="analysis-subheading">Dataset preview</h3>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Tweet text</th><th>Target</th></tr></thead>
+            <tbody>
+              {% for row in analysis.preview %}
+                <tr><td class="tweet-cell">{{ row.text }}</td><td>{{ 'Disaster' if row.target == 1 else 'Non-disaster' }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="analysis-empty">Run <code>project_7 (2).py</code> once to generate the dataset and model analysis.</p>
+      {% endif %}
+    </section>
+  </main>
+  <script>
+    const tweetInput = document.getElementById("tweet");
+    const characterCount = document.getElementById("char-count");
+    const resultContainer = document.getElementById("classification-result");
+    let debounceTimer;
+    let activeRequest;
+    let latestRequest = 0;
+
+    const updateCount = () => { characterCount.textContent = tweetInput.value.length; };
+    const showMessage = (message, className = "placeholder") => {
+      const paragraph = document.createElement("p");
+      paragraph.className = className;
+      paragraph.textContent = message;
+      resultContainer.replaceChildren(paragraph);
+    };
+    const showResult = (data) => {
+      const result = document.createElement("div");
+      result.className = `result ${data.label === 1 ? "disaster" : "safe"}`;
+
+      const prediction = document.createElement("strong");
+      prediction.textContent = data.prediction;
+
+      const confidence = document.createElement("p");
+      confidence.className = "confidence";
+      confidence.textContent = `Model confidence: ${(data.confidence * 100).toFixed(1)}%`;
+
+      result.append(prediction, confidence);
+      resultContainer.replaceChildren(result);
+    };
+
+    tweetInput.addEventListener("input", updateCount);
+    tweetInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      activeRequest?.abort();
+      activeRequest = null;
+      const requestId = ++latestRequest;
+      const tweet = tweetInput.value.trim();
+
+      if (!tweet) {
+        showMessage("Your result will appear here.");
+        return;
+      }
+
+      showMessage("Waiting to analyze...");
+      debounceTimer = setTimeout(async () => {
+        const controller = new AbortController();
+        activeRequest = controller;
+        showMessage("Analyzing tweet…");
+
+        try {
+          const response = await fetch("/api/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tweet }),
+            signal: controller.signal
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Could not analyze this tweet.");
+          if (requestId === latestRequest) showResult(data);
+        } catch (error) {
+          if (error.name !== "AbortError" && requestId === latestRequest) {
+            showMessage(error.message || "Could not analyze this tweet. Please try again.", "error");
+          }
+        }
+      }, 450);
+    });
+    updateCount();
+  </script>
+</body>
+</html>

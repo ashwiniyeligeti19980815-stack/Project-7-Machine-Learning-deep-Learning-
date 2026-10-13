@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: disaster-tweet-classifier
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python train_model.py "$TRAINING_DATA_PATH"
+    startCommand: gunicorn app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: TRAINING_DATA_PATH
+        value: twitter_disaster (1) (1).xlsx
